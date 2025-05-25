@@ -12,6 +12,7 @@ EXCLUDE_LIST=(
     "--exclude=.gitignore"
     "--exclude=*.zip"
     "--exclude=*.env"
+    "--exclude=*.vscode/*"
 )
 
 EXCLUDE_CMD="${EXCLUDE_LIST[*]}"
