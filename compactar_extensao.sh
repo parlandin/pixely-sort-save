@@ -11,6 +11,7 @@ EXCLUDE_LIST=(
     "--exclude=.git/*"
     "--exclude=.gitignore"
     "--exclude=*.zip"
+    "--exclude=*.env"
 )
 
 EXCLUDE_CMD="${EXCLUDE_LIST[*]}"
