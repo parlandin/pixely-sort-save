@@ -1,0 +1,13 @@
+{
+  "emeraldwalk.runonsave": {
+  "message": "Running command...",
+  
+  "commands": [
+    {
+      "match": "\\.(html|css|js)$",
+      "cmd": "'${workspaceFolder}/compactar_extensao.sh'",
+      "autoShowOutputPanel": "error",
+    }
+  ]
+},
+}
