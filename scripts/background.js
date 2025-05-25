@@ -28,7 +28,9 @@ const MESSAGE_ACTIONS = {
 // ============================================================================
 // CONTEXT MENU MANAGEMENT
 // ============================================================================
-function createLocalSaveContextMenus(suffixes) {
+async function createLocalSaveContextMenus(suffixes) {
+  await removeLocalSaveContextMenus();
+
   browser.contextMenus.create({
     id: CONTEXT_MENU_IDS.LOCAL_SAVE_PARENT,
     title: "Salvar imagem (local)",
@@ -79,7 +81,7 @@ async function updateContextMenusBasedOnSettings(settings) {
       settings.subfolderEnabled && settings.suffixes?.length > 0;
 
     if (shouldShowLocalMenus) {
-      createLocalSaveContextMenus(settings.suffixes);
+      await createLocalSaveContextMenus(settings.suffixes);
     } else {
       await removeLocalSaveContextMenus();
     }
