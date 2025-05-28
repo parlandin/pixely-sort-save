@@ -5,14 +5,15 @@
   "description": "Salva imagens rapidamente em subpastas com nome aleatório.",
   "permissions": [
     "downloads",
+    "downloads.open",
     "contextMenus",
     "storage",
     "activeTab",
     "<all_urls>"
   ],
-  "host_permissions": ["<all_urls>", "https://api.dropboxapi.com/"],
   "background": {
     "scripts": [
+      "lib/browser-polyfill.min.js",
       "scripts/utils.js",
       "scripts/dropbox.js",
       "scripts/background.js"
@@ -22,15 +23,19 @@
   "browser_action": {
     "default_popup": "./pages/index.html",
     "default_icon": {
-      "16": "icons/icon.png",
-      "48": "icons/icon.png",
-      "128": "icons/icon.png"
+      "16": "icons/iconx16.png",
+      "32": "icons/iconx32.png",
+      "48": "icons/iconx48.png",
+      "64": "icons/iconx64.png",
+      "72": "icons/iconx72.png",
+      "128": "icons/iconx128.png",
+      "256": "icons/iconx256.png"
     }
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["scripts/content_script.js", "scripts/index.js"] 
+      "js": ["lib/browser-polyfill.min.js", "scripts/content_script.js"] 
     }
   ],
   "options_ui": {
@@ -38,6 +43,12 @@
     "open_in_tab": true
   },
   "icons": {
-    "48": "icons/icon.png"
+    "16": "icons/iconx16.png",
+    "32": "icons/iconx32.png",
+    "48": "icons/iconx48.png",
+    "64": "icons/iconx64.png",
+    "72": "icons/iconx72.png",
+    "128": "icons/iconx128.png",
+    "256": "icons/iconx256.png"
   }
 }
