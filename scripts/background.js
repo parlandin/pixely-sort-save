@@ -24,6 +24,7 @@ const MESSAGE_ACTIONS = {
   SHOW_SUCCESS_TOAST: "showDownloadSuccessToast",
   SHOW_ERROR_TOAST: "showDownloadErrorToast",
 };
+let lastClickPosition = { x: null, y: null };
 
 // ============================================================================
 // CONTEXT MENU MANAGEMENT
@@ -31,10 +32,28 @@ const MESSAGE_ACTIONS = {
 async function createLocalSaveContextMenus(suffixes) {
   await removeLocalSaveContextMenus();
 
+  const isFirefox = DetectBrowser.isFirefox();
+
+  const icons = {
+    16: "../icons/folder.png",
+    32: "../icons/folder.png",
+    48: "../icons/folder.png",
+    128: "../icons/folder.png",
+  };
+
+  const menuCreateOptions = {
+    documentUrlPatterns: ["https://*/*", "http://*/*"],
+    contexts: ["frame", "image", "page"],
+  };
+
+  if (isFirefox) {
+    menuCreateOptions.icons = icons;
+  }
+
   browser.contextMenus.create({
     id: CONTEXT_MENU_IDS.LOCAL_SAVE_PARENT,
     title: "Salvar imagem (local)",
-    contexts: ["image"],
+    ...menuCreateOptions,
   });
 
   suffixes.forEach((suffix) => {
@@ -42,7 +61,7 @@ async function createLocalSaveContextMenus(suffixes) {
       id: `${CONTEXT_MENU_IDS.LOCAL_SAVE_PREFIX}${suffix}`,
       parentId: CONTEXT_MENU_IDS.LOCAL_SAVE_PARENT,
       title: suffix,
-      contexts: ["image"],
+      ...menuCreateOptions,
     });
   });
 }
@@ -52,6 +71,12 @@ function createDropboxSaveContextMenu() {
     id: CONTEXT_MENU_IDS.DROPBOX_SAVE,
     title: "Salvar no Dropbox",
     contexts: ["image"],
+    icons: {
+      16: "../icons/dropbox.png",
+      32: "../icons/dropbox.png",
+      48: "../icons/dropbox.png",
+      128: "../icons/dropbox.png",
+    },
   });
 }
 
@@ -97,7 +122,108 @@ async function updateContextMenusBasedOnSettings(settings) {
 }
 
 // ============================================================================
-// IMAGE DOWNLOAD
+// BLOB HANDLING
+// ============================================================================
+function isBlobUrl(url) {
+  return url && url.startsWith("blob:");
+}
+
+async function downloadBlobUrl(blobUrl, tabId) {
+  try {
+    // Enviar mensagem para o content script fazer o fetch
+    const response = await browser.tabs.sendMessage(tabId, {
+      action: "FETCH_BLOB_DATA",
+      blobUrl: blobUrl,
+    });
+
+    if (response.success) {
+      return {
+        arrayBuffer: response.arrayBuffer,
+        mimeType: response.mimeType,
+        extension: response.extension,
+      };
+    } else {
+      throw new Error(response.error);
+    }
+  } catch (error) {
+    console.error("Erro ao processar blob URL:", error);
+    throw error;
+  }
+}
+
+async function CreateBlobUrl(arrayBuffer, mimeType) {
+  let bufferToUse;
+  if (Array.isArray(arrayBuffer)) {
+    bufferToUse = new Uint8Array(arrayBuffer);
+  } else {
+    bufferToUse = arrayBuffer;
+  }
+
+  const blob = new Blob([bufferToUse], { type: mimeType });
+  const downloadUrl = URL.createObjectURL(blob);
+
+  console.log("Blob URL created:", downloadUrl);
+
+  return downloadUrl;
+}
+
+async function resolveImagemInput(info, tab) {
+  if (!info?.mediaType || info.mediaType !== "image") {
+    const response = await browser.tabs.sendMessage(tab.id, {
+      action: "download-image",
+      position: lastClickPosition,
+    });
+
+    console.log({ response });
+
+    if (response && response.url) {
+      const { url: imageUrl, type } = response;
+      if (type === "blob") {
+        const blobData = await downloadBlobUrl(imageUrl, tab.id);
+        const url = await CreateBlobUrl(
+          blobData.arrayBuffer,
+          blobData.mimeType
+        );
+
+        return {
+          url: url,
+          fileExtension: blobData.extension,
+        };
+      } else {
+        const url = imageUrl;
+
+        return {
+          url: url,
+          fileExtension: getFileExtension(url),
+        };
+      }
+    }
+  }
+
+  if (!info.srcUrl) {
+    return null;
+  }
+
+  const isBlob = isBlobUrl(info.srcUrl);
+
+  if (isBlob) {
+    const blobData = await downloadBlobUrl(info.srcUrl, tab.id);
+    const url = await CreateBlobUrl(blobData.arrayBuffer, blobData.mimeType);
+
+    return {
+      url: url,
+      fileExtension: blobData.extension,
+    };
+  }
+
+  return {
+    url: info.srcUrl,
+    fileExtension: getFileExtension(info.srcUrl),
+  };
+}
+
+// ============================================================================
+// IMAGE DOWNLOAD (UPDATED)
 // ============================================================================
 function buildDownloadFilename(suffix, fileExtension) {
   const randomName = generateRandomName(10);
@@ -125,6 +251,7 @@ async function sendSuccessNotification(tabId, message) {
 async function downloadImageToLocal(
   imageUrl,
   folderSuffix = "direct",
+  fileExtension = null,
   tabId = null
 ) {
   if (!imageUrl) {
@@ -133,19 +260,56 @@ async function downloadImageToLocal(
   }
 
   try {
-    const fileExtension = getFileExtension(imageUrl);
+    let downloadUrl = imageUrl;
+
+    // Handle data URLs by converting to blob URLs
+    if (downloadUrl.startsWith("data:")) {
+      try {
+        const response = await fetch(downloadUrl);
+        const blob = await response.blob();
+        downloadUrl = URL.createObjectURL(blob);
+      } catch (fetchError) {
+        console.error("Error converting data URL to blob URL:", fetchError);
+        await browser.tabs.sendMessage(tabId, {
+          action: MESSAGE_ACTIONS.SHOW_ERROR_TOAST,
+          message: "Erro ao processar a imagem. Tente novamente.",
+        });
+        return;
+      }
+    }
+
     const filename = buildDownloadFilename(folderSuffix, fileExtension);
 
     await browser.downloads.download({
-      url: imageUrl,
+      url: downloadUrl,
       filename: filename,
       conflictAction: "uniquify",
       saveAs: false,
     });
 
+    // Clean up any blob URLs we created
+    if (
+      (isBlobUrl(downloadUrl) || downloadUrl.startsWith("blob:")) &&
+      downloadUrl !== imageUrl
+    ) {
+      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+    }
+
     await sendSuccessNotification(tabId, "Imagem salva com sucesso!");
   } catch (error) {
     console.error("Erro ao baixar imagem:", error);
+
+    // Send error notification to user
+    if (tabId) {
+      try {
+        await browser.tabs.sendMessage(tabId, {
+          action: MESSAGE_ACTIONS.SHOW_ERROR_TOAST,
+          message: "Erro ao salvar imagem. Tente novamente.",
+        });
+      } catch (msgError) {
+        console.error("Erro ao enviar mensagem de erro:", msgError);
+      }
+    }
   }
 }
 
@@ -216,7 +380,8 @@ async function handleStorageChanges(changes) {
 // ============================================================================
 // EVENT HANDLERS
 // ============================================================================
-function handleContextMenuClick(info, tab) {
+
+async function handleContextMenuClick(info, tab) {
   const menuItemId = info.menuItemId;
 
   if (menuItemId.startsWith(CONTEXT_MENU_IDS.LOCAL_SAVE_PREFIX)) {
@@ -224,12 +389,28 @@ function handleContextMenuClick(info, tab) {
       CONTEXT_MENU_IDS.LOCAL_SAVE_PREFIX,
       ""
     );
-    downloadImageToLocal(info.srcUrl, folderSuffix, tab?.id);
+
+    const resolvedImage = await resolveImagemInput(info, tab);
+    if (!resolvedImage || !resolvedImage.url) {
+      console.error("Failed to resolve image input.");
+      return;
+    }
+
+    console.log({ resolvedImage });
+
+    const { url, fileExtension } = resolvedImage;
+    downloadImageToLocal(url, folderSuffix, fileExtension, tab?.id);
     return;
   }
 
   if (menuItemId === CONTEXT_MENU_IDS.DROPBOX_SAVE) {
-    saveImageToDropbox(info.srcUrl, tab?.id);
+    const resolvedImage = await resolveImagemInput(info, tab);
+    if (!resolvedImage || !resolvedImage.url) {
+      console.error("Failed to resolve image input for Dropbox.");
+      return;
+    }
+
+    saveImageToDropbox(resolvedImage.url, tab?.id);
     return;
   }
 }
@@ -240,7 +421,16 @@ async function handleDoubleClickDownload(imageUrl, tabId) {
   );
 
   if (doubleClickEnabled) {
-    await downloadImageToLocal(imageUrl, "direct", tabId);
+    const resolvedImage = await resolveImagemInput(
+      { srcUrl: imageUrl, mediaType: "image" },
+      tabId
+    );
+    await downloadImageToLocal(
+      resolvedImage.url,
+      "direct",
+      resolvedImage.fileExtension,
+      tabId
+    );
   } else {
     console.log("Download por duplo clique desativado nas configurações.");
     await sendSuccessNotification(
@@ -269,6 +459,13 @@ async function handleRuntimeMessage(message, sender, sendResponse) {
       await browser.storage.local.set({
         dropboxEnabled: message.dropboxEnabled,
       });
+      break;
+
+    case "context-menu-position":
+      lastClickPosition = {
+        x: message.x,
+        y: message.y,
+      };
       break;
 
     default:
