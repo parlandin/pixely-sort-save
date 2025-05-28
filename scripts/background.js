@@ -36,9 +36,7 @@ async function createLocalSaveContextMenus(suffixes) {
 
   const icons = {
     16: "../icons/folder.png",
-    32: "../icons/folder.png",
     48: "../icons/folder.png",
-    128: "../icons/folder.png",
   };
 
   const menuCreateOptions = {
@@ -67,16 +65,26 @@ async function createLocalSaveContextMenus(suffixes) {
 }
 
 function createDropboxSaveContextMenu() {
+  const isFirefox = DetectBrowser.isFirefox();
+
+  const icons = {
+    16: "../icons/dropbox.png",
+    48: "../icons/dropbox.png",
+  };
+
+  const menuCreateOptions = {
+    documentUrlPatterns: ["https://*/*", "http://*/*"],
+    contexts: ["frame", "image", "page"],
+  };
+
+  if (isFirefox) {
+    menuCreateOptions.icons = icons;
+  }
+
   browser.contextMenus.create({
     id: CONTEXT_MENU_IDS.DROPBOX_SAVE,
     title: "Salvar no Dropbox",
-    contexts: ["image"],
-    icons: {
-      16: "../icons/dropbox.png",
-      32: "../icons/dropbox.png",
-      48: "../icons/dropbox.png",
-      128: "../icons/dropbox.png",
-    },
+    ...menuCreateOptions,
   });
 }
 
