@@ -82,6 +82,7 @@ function handleDoubleClick(event) {
 }
 
 function handleRuntimeMessage(message) {
+  console.log("Handling runtime message:", message);
   const { action, message: toastMessage } = message;
 
   switch (action) {
@@ -186,10 +187,19 @@ async function fetchBlobData(blobUrl) {
   }
 }
 
+async function fetchDataURL(url) {
+  const response = await fetch(url);
+  const blob = await response.blob();
+  const objectURL = URL.createObjectURL(blob);
+
+  return objectURL;
+}
+
 // ============================================================================
 // MESSAGE HANDLER
 // ============================================================================
 browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log("Received message in content script:", message);
   // Handle toast messages
   if (
     message.action === MESSAGE_ACTIONS.SHOW_SUCCESS_TOAST ||
@@ -215,6 +225,18 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         };
       })
       .catch((error) => {
+        return { success: false, error: error.message };
+      });
+  }
+
+  if (message.action === "FETCH_DATA_URL") {
+    return fetchDataURL(message.url)
+      .then((dataUrl) => {
+        console.log("Data URL fetched successfully:", dataUrl);
+        return { success: true, dataUrl: dataUrl };
+      })
+      .catch((error) => {
+        console.error("Error fetching Data URL:", error);
         return { success: false, error: error.message };
       });
   }
