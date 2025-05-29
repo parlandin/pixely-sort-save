@@ -9,11 +9,14 @@ const MESSAGE_ACTIONS = {
   FETCH_DATA_URL: "FETCH_DATA_URL",
   DOWNLOAD_IMAGE_AT_POSITION: "download-image",
   CONTEXT_MENU_POSITION: "context-menu-position",
+  SHOW_LOADING_TOAST: "showLoadingToast",
 };
 
 const TOAST_TYPES = {
   SUCCESS: "success",
   ERROR: "error",
+  INFO: "info",
+  WARNING: "warning",
 };
 
 const TOAST_CONFIG = {
@@ -36,6 +39,8 @@ const TOAST_CONFIG = {
     `,
     success: "#4CAF50",
     error: "#f44336",
+    info: "#2196F3",
+    warning: "#FF9800",
   },
 };
 
@@ -116,10 +121,22 @@ async function handleImageDoubleClick(imageUrl) {
 }
 
 function handleDoubleClickEvent(event) {
-  if (!isImageElement(event.target)) return;
-  if (!hasValidImageUrl(event.target)) return;
+  if (isImageElement(event.target) || hasValidImageUrl(event.target)) {
+    return handleImageDoubleClick(event.target.src);
+  }
 
-  const imageUrl = event.target.src;
+  const imageElement = findImageUnderPointer(event.pageX, event.pageY, 7);
+
+  if (!imageElement) {
+    showToast("Nenhuma imagem encontrada", TOAST_TYPES.ERROR);
+    return;
+  }
+  const imageUrl = imageElement.url;
+  if (!imageUrl) {
+    showToast("URL da imagem inválida", TOAST_TYPES.ERROR);
+    return;
+  }
+
   handleImageDoubleClick(imageUrl);
 }
 
@@ -365,6 +382,10 @@ function handleToastMessage(message) {
       showToast(toastMessage, TOAST_TYPES.ERROR);
       break;
 
+    case MESSAGE_ACTIONS.SHOW_LOADING_TOAST:
+      showToast(toastMessage, TOAST_TYPES.INFO);
+      break;
+
     default:
       return;
   }
@@ -427,7 +448,8 @@ async function handleDownloadImageMessage(message) {
 function isToastMessage(action) {
   return (
     action === MESSAGE_ACTIONS.SHOW_SUCCESS_TOAST ||
-    action === MESSAGE_ACTIONS.SHOW_ERROR_TOAST
+    action === MESSAGE_ACTIONS.SHOW_ERROR_TOAST ||
+    action === MESSAGE_ACTIONS.SHOW_LOADING_TOAST
   );
 }
 

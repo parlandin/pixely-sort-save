@@ -47,6 +47,7 @@ const MESSAGE_ACTIONS = {
   UPDATE_DROPBOX_ENABLED: "updateDropboxEnabled",
   SHOW_SUCCESS_TOAST: "showDownloadSuccessToast",
   SHOW_ERROR_TOAST: "showDownloadErrorToast",
+  SHOW_LOADING_TOAST: "showLoadingToast",
 };
 
 // ============================================================================

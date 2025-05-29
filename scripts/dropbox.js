@@ -110,8 +110,13 @@ function buildDropboxPath(folderPath, filename) {
   return `${folderPath}/${filename}`;
 }
 
-async function processDropboxUpload(imageUrl, folderPath, dropboxToken) {
+async function processDropboxUpload(imageUrl, folderPath, dropboxToken, tabId) {
   validateImageUrl(imageUrl);
+
+  await browser.tabs.sendMessage(tabId, {
+    action: MESSAGE_ACTIONS.SHOW_LOADING_TOAST,
+    message: "Salvando imagem no Dropbox...",
+  });
 
   const imageBlob = await fetchImageBlob(imageUrl);
   const filename = await buildDropboxFilename(imageUrl);
@@ -134,7 +139,7 @@ async function saveImageToDropbox(imageUrl, tabId = null) {
     const folder = data.dropboxFolderPath || "";
     const folderPath = normalizeFolderPath(folder);
 
-    await processDropboxUpload(imageUrl, folderPath, data.dropboxToken);
+    await processDropboxUpload(imageUrl, folderPath, data.dropboxToken, tabId);
   } catch (error) {
     console.error("Erro ao salvar no Dropbox:", error);
     message = `Erro ao salvar no Dropbox: ${error.message}`;

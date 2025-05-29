@@ -179,7 +179,7 @@ async function downloadImageToLocal(
       setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
     } */
 
-    await sendSuccessNotification(tabId, "Imagem salva com sucesso!");
+    await sendSuccessNotification(tabId, "Imagem encontrada, salvando...");
   } catch (error) {
     console.error("Erro ao baixar imagem:", error);
 
