@@ -7,23 +7,21 @@ function generateRandomName(length = 10) {
   ).join("");
 }
 
-function getFileExtension(url) {
+async function getFileExtension(url) {
   const match = url.match(/\.(\w+)(?=($|\?|#))/);
-  return match ? match[1] : "jpg";
+
+  if (!match) {
+    const local = await browser.storage.local.get("defaultFormat");
+
+    if (local.defaultFormat) {
+      return local.defaultFormat;
+    }
+
+    return "jpg";
+  }
+  return match[1];
 }
 
 function isBlobUrl(url) {
   return url && url.startsWith("blob:");
 }
-
-const DetectBrowser = {
-  isFirefox: () =>
-    typeof browser !== "undefined" && typeof InstallTrigger !== "undefined",
-  isChrome: () =>
-    typeof chrome !== "undefined" && typeof browser === "undefined",
-  isEdge: () => navigator.userAgent.includes("Edg"),
-  isBrave: async () => {
-    return (navigator.brave && (await navigator.brave.isBrave())) === true;
-  },
-  isOpera: () => navigator.userAgent.includes("OPR"),
-};

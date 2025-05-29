@@ -1,6 +1,7 @@
 const DEFAULT_SETTINGS = {
   suffixes: ["picture", "wallpapers", "uncategorized", "direct"],
   doubleClickEnabled: true,
+  defaultFormat: "jpg",
   subfolderEnabled: true,
   dropboxToken: "",
   dropboxFolderPath: "/",
@@ -17,6 +18,7 @@ const UI_ELEMENTS = {
   addButton: document.getElementById("add-suffix"),
   newSuffixInput: document.getElementById("new-suffix"),
   doubleClickToggle: document.getElementById("double-click-toggle"),
+  defaultFormatSelect: document.getElementById("default-format"),
   subfolderToggle: document.getElementById("subfolder-toggle"),
   togglePassword: document.querySelector(".toggle-password"),
   tokenInput: document.querySelector("#dropbox-token"),
@@ -125,6 +127,14 @@ async function updateDropboxFolder(folderPath) {
   }
 }
 
+async function updateDefaultFormat(format) {
+  try {
+    await browser.storage.local.set({ defaultFormat: format });
+  } catch (error) {
+    console.error("Error updating default format:", error);
+  }
+}
+
 function setupAddSuffixButton(suffixes) {
   UI_ELEMENTS.addButton.addEventListener("click", () => {
     addNewSuffix(suffixes);
@@ -177,6 +187,13 @@ function setupPasswordToggle() {
   });
 }
 
+function setupDefaultFormatSelect() {
+  UI_ELEMENTS.defaultFormatSelect.addEventListener("change", () => {
+    const format = UI_ELEMENTS.defaultFormatSelect.value;
+    updateDefaultFormat(format);
+  });
+}
+
 function setupEventListeners(suffixes) {
   setupAddSuffixButton(suffixes);
   setupDoubleClickToggle();
@@ -185,6 +202,7 @@ function setupEventListeners(suffixes) {
   setupTokenInput();
   setupDropboxFolderInput();
   setupPasswordToggle();
+  setupDefaultFormatSelect();
 }
 
 function updateUIFromSettings(data) {
@@ -194,6 +212,7 @@ function updateUIFromSettings(data) {
   UI_ELEMENTS.dropboxToggle.checked = data.dropboxEnabled;
   UI_ELEMENTS.tokenInput.value = data.dropboxToken;
   UI_ELEMENTS.dropboxFolder.value = data.dropboxFolderPath;
+  UI_ELEMENTS.defaultFormatSelect.value = data.defaultFormat;
 }
 
 async function loadSettings() {

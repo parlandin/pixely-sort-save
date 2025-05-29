@@ -1,5 +1,5 @@
 {
-  "manifest_version": 2,
+  "manifest_version": 3,
   "name": "Pixely Sort & Save",
   "version": "1.1.0",
   "description": "Salva imagens rapidamente em subpastas com nome aleatório.",
@@ -8,20 +8,24 @@
     "downloads.open",
     "contextMenus",
     "storage",
-    "activeTab",
-    "<all_urls>"
+    "activeTab"
   ],
   "background": {
     "scripts": [
       "lib/browser-polyfill.min.js",
       "scripts/utils.js",
-      "scripts/dropbox.js",
+      "scripts/download.js",
       "scripts/background.js"
     ],
-    "persistent": false
+    "service_worker": "scripts/background.js"
   },
-  "browser_action": {
+  "host_permissions": [
+   "<all_urls>",
+    "https://content.dropboxapi.com/*"
+  ],
+  "action": {
     "default_popup": "./pages/index.html",
+    "default_title": "Pixely Sort & Save",
     "default_icon": {
       "16": "icons/iconx16.png",
       "32": "icons/iconx32.png",

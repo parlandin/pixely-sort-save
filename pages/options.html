@@ -250,6 +250,36 @@
         margin-left: 1rem;
       }
 
+      .format-select {
+        flex: 1;
+        min-width: 200px;
+        margin-left: 1rem;
+        background-color: #2a2a2a;
+        border: 2px solid var(--purple-primary);
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E");
+        background-repeat: no-repeat;
+        background-position: right 12px top 50%;
+        background-size: 12px auto;
+        padding-right: 32px;
+      }
+
+      .format-select:focus {
+        outline: none;
+        border-color: var(--purple-light);
+        box-shadow: 0 0 5px var(--purple-light);
+      }
+
+      .format-select:hover {
+        background-color: #333;
+      }
+
       /* Ajustes responsivos */
       @media (max-width: 768px) {
         .input-card {
@@ -271,6 +301,11 @@
 
         .password-input {
           margin-left: 0;
+        }
+
+        .format-select {
+          margin-left: 0;
+          width: 100%;
         }
       }
 
@@ -428,6 +463,23 @@
         color: var(--purple-primary);
         border-bottom-style: solid;
       }
+
+      /* Add this to your existing styles section */
+      .small-tip {
+        position: absolute;
+        bottom: 6px;
+        left: 19px;
+        font-size: 0.75rem;
+        color: rgba(245, 245, 245, 0.6);
+        font-style: italic;
+        font-weight: normal;
+      }
+
+      /* Update the switch-card to support positioning of the small-tip */
+      .switch-card {
+        position: relative;
+        padding-bottom: 1.6rem; /* Add extra padding at bottom to accommodate the tip */
+      }
     </style>
   </head>
   <body>
@@ -444,13 +496,28 @@
           >Ativar download com duplo clique:</label
         >
         <input type="checkbox" id="double-click-toggle" />
+        <span class="small-tip">obs: poder não funcionar em alguns casos.</span>
+      </div>
+
+      <p class="tip">
+        Formato aplicado quando não for possível identificar automaticamente.
+      </p>
+
+      <div class="option-card input-card">
+        <label for="default-format">Formato padrão para download:</label>
+        <select id="default-format" class="format-select">
+          <option value="png">PNG</option>
+          <option value="jpg">JPG/JPEG</option>
+          <option value="webp">WEBP</option>
+          <option value="bmp">BMP</option>
+        </select>
       </div>
 
       <h2>Salvar no Dropbox</h2>
       <p class="tip">
         Para entender como gerar seu token, acesse:
         <a href="https://www.merge.dev/blog/dropbox-api-key" target="_blank"
-          >guia para criar token</a
+          >guia para criar token.</a
         >
       </p>
 

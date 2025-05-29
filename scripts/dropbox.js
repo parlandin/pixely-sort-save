@@ -100,9 +100,9 @@ function validateDropboxToken(token) {
   }
 }
 
-function buildDropboxFilename(imageUrl) {
+async function buildDropboxFilename(imageUrl) {
   const randomName = generateRandomName(15);
-  const fileExtension = getFileExtension(imageUrl);
+  const fileExtension = await getFileExtension(imageUrl);
   return `${randomName}.${fileExtension}`;
 }
 
@@ -114,11 +114,10 @@ async function processDropboxUpload(imageUrl, folderPath, dropboxToken) {
   validateImageUrl(imageUrl);
 
   const imageBlob = await fetchImageBlob(imageUrl);
-  const filename = buildDropboxFilename(imageUrl);
+  const filename = await buildDropboxFilename(imageUrl);
   const dropboxPath = buildDropboxPath(folderPath, filename);
 
   const result = await uploadToDropbox(imageBlob, dropboxPath, dropboxToken);
-  console.log("Imagem salva no Dropbox:", result);
 
   return result;
 }
@@ -129,7 +128,6 @@ async function saveImageToDropbox(imageUrl, tabId = null) {
 
   try {
     const data = await getDropboxSettings();
-    console.log("Dados do Dropbox:", data);
 
     validateDropboxToken(data.dropboxToken);
 

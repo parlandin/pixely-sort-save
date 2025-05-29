@@ -1,7 +1,14 @@
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 const MESSAGE_ACTIONS = {
   DOWNLOAD_IMAGE: "downloadImage",
   SHOW_SUCCESS_TOAST: "showDownloadSuccessToast",
   SHOW_ERROR_TOAST: "showDownloadErrorToast",
+  FETCH_BLOB_DATA: "FETCH_BLOB_DATA",
+  FETCH_DATA_URL: "FETCH_DATA_URL",
+  DOWNLOAD_IMAGE_AT_POSITION: "download-image",
+  CONTEXT_MENU_POSITION: "context-menu-position",
 };
 
 const TOAST_TYPES = {
@@ -32,8 +39,21 @@ const TOAST_CONFIG = {
   },
 };
 
+const IMAGE_EXTENSIONS = {
+  "image/jpeg": "jpeg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+  "image/bmp": "bmp",
+  "image/svg+xml": "svg",
+};
+
+// ============================================================================
+// IMAGE VALIDATION UTILITIES
+// ============================================================================
 function isImageElement(element) {
-  return element.tagName === "IMG";
+  return element && element.tagName === "IMG";
 }
 
 function hasValidImageUrl(element) {
@@ -44,11 +64,26 @@ function hasValidBlobUrl(element) {
   return element.src && element.src.startsWith("blob:");
 }
 
-async function checkDoubleClickEnabled() {
-  const data = await browser.storage.local.get("doubleClickEnabled");
-  return data.doubleClickEnabled;
+function isBlobUrl(url) {
+  return url && url.startsWith("blob:");
 }
 
+// ============================================================================
+// STORAGE UTILITIES
+// ============================================================================
+async function isDoubleClickEnabled() {
+  try {
+    const data = await browser.storage.local.get("doubleClickEnabled");
+    return data.doubleClickEnabled;
+  } catch (error) {
+    console.error("Error checking double click setting:", error);
+    return false;
+  }
+}
+
+// ============================================================================
+// MESSAGE SENDING UTILITIES
+// ============================================================================
 function sendDownloadMessage(imageUrl) {
   browser.runtime.sendMessage({
     action: MESSAGE_ACTIONS.DOWNLOAD_IMAGE,
@@ -56,49 +91,41 @@ function sendDownloadMessage(imageUrl) {
   });
 }
 
+function sendContextMenuPosition(x, y) {
+  browser.runtime.sendMessage({
+    action: MESSAGE_ACTIONS.CONTEXT_MENU_POSITION,
+    x: x,
+    y: y,
+  });
+}
+
+// ============================================================================
+// DOUBLE CLICK HANDLING
+// ============================================================================
 async function handleImageDoubleClick(imageUrl) {
-  const isEnabled = await checkDoubleClickEnabled();
+  const isEnabled = await isDoubleClickEnabled();
 
   if (isEnabled) {
     sendDownloadMessage(imageUrl);
   } else {
-    console.log(
-      "Download por duplo clique desativado. Verifique as configurações."
-    );
-    showToast(
-      "Download por duplo clique desativado. Acesse as configurações.",
-      TOAST_TYPES.ERROR
-    );
+    const errorMessage =
+      "Download por duplo clique desativado. Acesse as configurações.";
+
+    showToast(errorMessage, TOAST_TYPES.ERROR);
   }
 }
 
-function handleDoubleClick(event) {
+function handleDoubleClickEvent(event) {
   if (!isImageElement(event.target)) return;
-
-  const imageUrl = event.target.src;
   if (!hasValidImageUrl(event.target)) return;
 
+  const imageUrl = event.target.src;
   handleImageDoubleClick(imageUrl);
 }
 
-function handleRuntimeMessage(message) {
-  console.log("Handling runtime message:", message);
-  const { action, message: toastMessage } = message;
-
-  switch (action) {
-    case MESSAGE_ACTIONS.SHOW_SUCCESS_TOAST:
-      showToast(toastMessage, TOAST_TYPES.SUCCESS);
-      break;
-
-    case MESSAGE_ACTIONS.SHOW_ERROR_TOAST:
-      showToast(toastMessage, TOAST_TYPES.ERROR);
-      break;
-
-    default:
-      console.warn(`Unknown message action: ${action}`);
-  }
-}
-
+// ============================================================================
+// TOAST NOTIFICATION SYSTEM
+// ============================================================================
 function removeExistingToast() {
   const existingToast = document.getElementById(TOAST_CONFIG.ID);
   if (existingToast) {
@@ -111,14 +138,17 @@ function createToastElement(message, type) {
   toast.id = TOAST_CONFIG.ID;
   toast.textContent = message;
 
-  const backgroundColor =
-    TOAST_CONFIG.STYLES[type] || TOAST_CONFIG.STYLES.success;
+  const backgroundColor = getToastBackgroundColor(type);
   toast.style.cssText = `
     ${TOAST_CONFIG.STYLES.base}
     background-color: ${backgroundColor};
   `;
 
   return toast;
+}
+
+function getToastBackgroundColor(type) {
+  return TOAST_CONFIG.STYLES[type] || TOAST_CONFIG.STYLES.success;
 }
 
 function animateToastIn(toast) {
@@ -131,6 +161,12 @@ function animateToastOut(toast) {
   toast.addEventListener("transitionend", () => toast.remove(), { once: true });
 }
 
+function scheduleToastRemoval(toast) {
+  setTimeout(() => {
+    animateToastOut(toast);
+  }, TOAST_CONFIG.DURATION);
+}
+
 function showToast(message, type = TOAST_TYPES.SUCCESS) {
   removeExistingToast();
 
@@ -138,178 +174,128 @@ function showToast(message, type = TOAST_TYPES.SUCCESS) {
   document.body.appendChild(toast);
 
   animateToastIn(toast);
-
-  setTimeout(() => {
-    animateToastOut(toast);
-  }, TOAST_CONFIG.DURATION);
+  scheduleToastRemoval(toast);
 }
 
-document.addEventListener("dblclick", handleDoubleClick);
-/* browser.runtime.onMessage.addListener(handleRuntimeMessage); */
-
 // ============================================================================
-// BLOB HANDLING NO CONTENT SCRIPT
+// BLOB DATA PROCESSING
 // ============================================================================
-async function fetchBlobData(blobUrl) {
+async function fetchBlobResponse(blobUrl) {
   try {
     const response = await fetch(blobUrl);
-    const blob = await response.blob();
+    return await response.blob();
+  } catch (error) {
+    console.error("Error fetching blob response:", error);
+    throw error;
+  }
+}
 
-    console.log("Blob fetched successfully:", blob.type);
+function getBlobMimeType(blob) {
+  return blob.type || "image/jpeg";
+}
 
-    // Obter o tipo MIME do blob
-    const mimeType = blob.type || "image/jpeg";
+async function getFileExtensionFromMimeType(mimeType) {
+  if (!mimeType || typeof mimeType !== "string") {
+    const local = await browser.storage.local.get("defaultFormat");
+    if (local.defaultFormat) {
+      return local.defaultFormat;
+    }
+    return "jpg";
+  }
+  return IMAGE_EXTENSIONS[mimeType] || "jpg";
+}
 
-    // Converter para array buffer
-    const arrayBuffer = await blob.arrayBuffer();
+async function convertBlobToArrayBuffer(blob) {
+  return await blob.arrayBuffer();
+}
 
-    // Determinar extensão baseada no MIME type
-    const extensionMap = {
-      "image/jpeg": "jpeg",
-      "image/jpg": "jpg",
-      "image/png": "png",
-      "image/gif": "gif",
-      "image/webp": "webp",
-      "image/bmp": "bmp",
-      "image/svg+xml": "svg",
-    };
+function createBlobDataResponse(arrayBuffer, mimeType, extension) {
+  return {
+    arrayBuffer: Array.from(new Uint8Array(arrayBuffer)),
+    mimeType: mimeType,
+    extension: extension,
+  };
+}
 
-    const extension = extensionMap[mimeType] || "jpg";
+async function fetchBlobData(blobUrl) {
+  try {
+    const blob = await fetchBlobResponse(blobUrl);
 
-    return {
-      arrayBuffer: Array.from(new Uint8Array(arrayBuffer)),
-      mimeType: mimeType,
-      extension: extension,
-    };
+    const mimeType = getBlobMimeType(blob);
+    const extension = await getFileExtensionFromMimeType(mimeType);
+    const arrayBuffer = await convertBlobToArrayBuffer(blob);
+
+    return createBlobDataResponse(arrayBuffer, mimeType, extension);
   } catch (error) {
     console.error("Erro ao processar blob no content script:", error);
     throw error;
   }
 }
 
+// ============================================================================
+// DATA URL UTILITIES
+// ============================================================================
 async function fetchDataURL(url) {
-  const response = await fetch(url);
-  const blob = await response.blob();
-  const objectURL = URL.createObjectURL(blob);
-
-  return objectURL;
-}
-
-// ============================================================================
-// MESSAGE HANDLER
-// ============================================================================
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log("Received message in content script:", message);
-  // Handle toast messages
-  if (
-    message.action === MESSAGE_ACTIONS.SHOW_SUCCESS_TOAST ||
-    message.action === MESSAGE_ACTIONS.SHOW_ERROR_TOAST
-  ) {
-    handleRuntimeMessage(message);
-    return; // No response needed
-  }
-
-  // Handle FETCH_BLOB_DATA
-  if (message.action === "FETCH_BLOB_DATA") {
-    return fetchBlobData(message.blobUrl)
-      .then((blobData) => {
-        console.log(
-          "Blob data fetched successfully, mimeType:",
-          blobData.mimeType
-        );
-        return {
-          success: true,
-          arrayBuffer: blobData.arrayBuffer,
-          mimeType: blobData.mimeType,
-          extension: blobData.extension,
-        };
-      })
-      .catch((error) => {
-        return { success: false, error: error.message };
-      });
-  }
-
-  if (message.action === "FETCH_DATA_URL") {
-    return fetchDataURL(message.url)
-      .then((dataUrl) => {
-        console.log("Data URL fetched successfully:", dataUrl);
-        return { success: true, dataUrl: dataUrl };
-      })
-      .catch((error) => {
-        console.error("Error fetching Data URL:", error);
-        return { success: false, error: error.message };
-      });
-  }
-
-  // Handle download-image
-  if (message.action === "download-image") {
-    const { x, y } = message.position;
-    console.log("Download image at position:", x, y);
-
-    const imageElement = findImageUnderPointer(x, y, 7);
-
-    if (imageElement) {
-      const { type, url } = imageElement;
-      const isBlobUrl = url && url.startsWith("blob:");
-
-      if (isBlobUrl) {
-        // For blob URLs, we return a promise that resolves to the response
-        return blobResolve(url).then((blobData) => {
-          return {
-            url: url,
-            type: "blob",
-            blobData: blobData,
-          };
-        });
-      }
-
-      // For regular URLs, we can return directly
-      return Promise.resolve({
-        url: url,
-        type: "image",
-      });
-    }
-
-    showToast("Nenhuma imagem encontrada", TOAST_TYPES.ERROR);
-    return Promise.resolve(null);
-  }
-
-  // Return undefined for any other messages
-  return undefined;
-});
-
-async function blobResolve(blobUrl) {
   try {
-    const blobData = await fetchBlobData(blobUrl);
-    return {
-      success: true,
-      arrayBuffer: blobData.arrayBuffer,
-      mimeType: blobData.mimeType,
-      extension: blobData.extension,
-    };
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return URL.createObjectURL(blob);
   } catch (error) {
-    console.error("Erro ao processar blob:", error);
-    return { success: false, error: error.message };
+    console.error("Error fetching data URL:", error);
+    throw error;
   }
 }
 
-function getBackgroundImageUrl(el) {
-  const bg = window.getComputedStyle(el).backgroundImage;
-  if (bg && bg !== "none") {
-    const urlMatch = bg.match(/url\(["']?(.*?)["']?\)/);
-    return urlMatch ? urlMatch[1] : null;
+// ============================================================================
+// IMAGE SEARCH UTILITIES
+// ============================================================================
+function getBackgroundImageUrl(element) {
+  const computedStyle = window.getComputedStyle(element);
+  const backgroundImage = computedStyle.backgroundImage;
+
+  if (!backgroundImage || backgroundImage === "none") {
+    return null;
   }
+
+  const urlMatch = backgroundImage.match(/url\(["']?(.*?)["']?\)/);
+  return urlMatch ? urlMatch[1] : null;
+}
+
+function findChildImageElement(element) {
+  const childImg = element.querySelector("img");
+
+  if (!childImg) return null;
+  if (!hasValidImageUrl(childImg) && !hasValidBlobUrl(childImg)) return null;
+
+  return { type: "img", element: childImg, url: childImg.src };
+}
+
+function checkCurrentElementAsImage(element) {
+  if (!isImageElement(element)) return null;
+  if (!hasValidImageUrl(element) && !hasValidBlobUrl(element)) return null;
+
+  return { type: "img", element: element, url: element.src };
+}
+
+function checkElementBackgroundImage(element) {
+  const bgUrl = getBackgroundImageUrl(element);
+
+  if (!bgUrl) return null;
+
+  return { type: "background", element: element, url: bgUrl };
+}
+
+function searchElementForImage(element) {
+  const imageResult = checkCurrentElementAsImage(element);
+  if (imageResult) return imageResult;
+
+  const childImageResult = findChildImageElement(element);
+  if (childImageResult) return childImageResult;
+
+  const backgroundResult = checkElementBackgroundImage(element);
+  if (backgroundResult) return backgroundResult;
+
   return null;
-}
-
-function findImageUnderPointer(x, y, maxLevels = 5) {
-  const el = document.elementFromPoint(x, y);
-
-  console.log("Element under pointer:", el);
-
-  if (!el) return null;
-
-  return searchForImageOrBackground(el, maxLevels);
 }
 
 function searchForImageOrBackground(element, maxLevels) {
@@ -317,24 +303,8 @@ function searchForImageOrBackground(element, maxLevels) {
   let level = 0;
 
   while (current && level <= maxLevels) {
-    console.log(`Checking element at level ${level}:`, current.class);
-    if (current.tagName === "IMG" && hasValidImageUrl(current)) {
-      return { type: "img", element: current, url: current.src };
-    }
-
-    if (current.tagName === "IMG" && hasValidBlobUrl(current)) {
-      return { type: "img", element: current, url: current.src };
-    }
-
-    const childImg = current.querySelector("img");
-    if (childImg && (hasValidImageUrl(childImg) || hasValidBlobUrl(childImg))) {
-      return { type: "img", element: childImg, url: childImg.src };
-    }
-
-    const bgUrl = getBackgroundImageUrl(current);
-    if (bgUrl) {
-      return { type: "background", element: current, url: bgUrl };
-    }
+    const imageResult = searchElementForImage(current);
+    if (imageResult) return imageResult;
 
     current = current.parentElement;
     level++;
@@ -343,18 +313,176 @@ function searchForImageOrBackground(element, maxLevels) {
   return null;
 }
 
-let mouseX = 0;
-let mouseY = 0;
+function findImageUnderPointer(x, y, maxLevels = 5) {
+  const element = document.elementFromPoint(x, y);
 
-document.addEventListener("contextmenu", (event) => {
-  mouseX = event.pageX;
-  mouseY = event.pageY;
+  if (!element) return null;
 
-  console.log("Context menu position:", mouseX, mouseY);
+  return searchForImageOrBackground(element, maxLevels);
+}
 
-  browser.runtime.sendMessage({
-    action: "context-menu-position",
-    x: mouseX,
-    y: mouseY,
-  });
-});
+// ============================================================================
+// BLOB RESOLUTION
+// ============================================================================
+async function createBlobResolveResponse(blobData) {
+  return {
+    success: true,
+    arrayBuffer: blobData.arrayBuffer,
+    mimeType: blobData.mimeType,
+    extension: blobData.extension,
+  };
+}
+
+function createBlobErrorResponse(error) {
+  return {
+    success: false,
+    error: error.message,
+  };
+}
+
+async function resolveBlobUrl(blobUrl) {
+  try {
+    const blobData = await fetchBlobData(blobUrl);
+    return createBlobResolveResponse(blobData);
+  } catch (error) {
+    console.error("Erro ao processar blob:", error);
+    return createBlobErrorResponse(error);
+  }
+}
+
+// ============================================================================
+// MESSAGE HANDLERS
+// ============================================================================
+function handleToastMessage(message) {
+  const { action, message: toastMessage } = message;
+
+  switch (action) {
+    case MESSAGE_ACTIONS.SHOW_SUCCESS_TOAST:
+      showToast(toastMessage, TOAST_TYPES.SUCCESS);
+      break;
+
+    case MESSAGE_ACTIONS.SHOW_ERROR_TOAST:
+      showToast(toastMessage, TOAST_TYPES.ERROR);
+      break;
+
+    default:
+      return;
+  }
+}
+
+async function handleFetchBlobDataMessage(message) {
+  try {
+    const blobData = await fetchBlobData(message.blobUrl);
+
+    return {
+      success: true,
+      arrayBuffer: blobData.arrayBuffer,
+      mimeType: blobData.mimeType,
+      extension: blobData.extension,
+    };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+}
+
+async function handleFetchDataUrlMessage(message) {
+  try {
+    const dataUrl = await fetchDataURL(message.url);
+
+    return { success: true, dataUrl: dataUrl };
+  } catch (error) {
+    console.error("Error fetching Data URL:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+function createImageDownloadResponse(url, type, blobData = null) {
+  const response = { url, type };
+  if (blobData) {
+    response.blobData = blobData;
+  }
+  return response;
+}
+
+async function handleDownloadImageMessage(message) {
+  const { x, y } = message.position;
+
+  const imageElement = findImageUnderPointer(x, y, 7);
+
+  if (!imageElement) {
+    showToast("Nenhuma imagem encontrada", TOAST_TYPES.ERROR);
+    return null;
+  }
+
+  const { url } = imageElement;
+
+  if (isBlobUrl(url)) {
+    const blobData = await resolveBlobUrl(url);
+    return createImageDownloadResponse(url, "blob", blobData);
+  }
+
+  return createImageDownloadResponse(url, "image");
+}
+
+function isToastMessage(action) {
+  return (
+    action === MESSAGE_ACTIONS.SHOW_SUCCESS_TOAST ||
+    action === MESSAGE_ACTIONS.SHOW_ERROR_TOAST
+  );
+}
+
+// ============================================================================
+// MAIN MESSAGE LISTENER
+// ============================================================================
+function handleRuntimeMessage(message, sender, sendResponse) {
+  const { action } = message;
+
+  if (isToastMessage(action)) {
+    handleToastMessage(message);
+    return;
+  }
+
+  switch (action) {
+    case MESSAGE_ACTIONS.FETCH_BLOB_DATA:
+      return handleFetchBlobDataMessage(message);
+
+    case MESSAGE_ACTIONS.FETCH_DATA_URL:
+      return handleFetchDataUrlMessage(message);
+
+    case MESSAGE_ACTIONS.DOWNLOAD_IMAGE_AT_POSITION:
+      return handleDownloadImageMessage(message);
+
+    default:
+      return undefined;
+  }
+}
+
+// ============================================================================
+// MOUSE POSITION TRACKING
+// ============================================================================
+let mousePosition = { x: 0, y: 0 };
+
+function updateMousePosition(event) {
+  mousePosition.x = event.pageX;
+  mousePosition.y = event.pageY;
+}
+
+function handleContextMenu(event) {
+  updateMousePosition(event);
+
+  sendContextMenuPosition(mousePosition.x, mousePosition.y);
+}
+
+// ============================================================================
+// EVENT LISTENERS SETUP
+// ============================================================================
+function setupEventListeners() {
+  document.addEventListener("dblclick", handleDoubleClickEvent);
+  document.addEventListener("contextmenu", handleContextMenu);
+  browser.runtime.onMessage.addListener(handleRuntimeMessage);
+}
+
+// ============================================================================
+// INITIALIZATION
+// ============================================================================
+setupEventListeners();
