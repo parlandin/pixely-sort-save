@@ -112,11 +112,11 @@ function sendContextMenuPosition(x, y) {
 // ============================================================================
 // DOUBLE CLICK HANDLING
 // ============================================================================
-async function handleImageDoubleClick(imageUrl) {
+async function handleImageDoubleClickValidation() {
   const isEnabled = await isDoubleClickEnabled();
 
   if (isEnabled) {
-    sendDownloadMessage(imageUrl);
+    return isEnabled;
   } else {
     let notificationCount = parseInt(
       sessionStorage.getItem("doubleClickNotificationCount") || "0"
@@ -136,9 +136,16 @@ async function handleImageDoubleClick(imageUrl) {
   }
 }
 
-function handleDoubleClickEvent(event) {
+async function handleDoubleClickEvent(event) {
+  const isEnabled = await handleImageDoubleClickValidation();
+
+  if (!isEnabled) {
+    return;
+  }
+
   if (isImageElement(event.target) || hasValidImageUrl(event.target)) {
-    return handleImageDoubleClick(event.target.src);
+    sendDownloadMessage(event.target.src);
+    return;
   }
 
   const imageElement = findImageUnderPointer(event.pageX, event.pageY, 7);
@@ -153,7 +160,7 @@ function handleDoubleClickEvent(event) {
     return;
   }
 
-  handleImageDoubleClick(imageUrl);
+  sendDownloadMessage(imageUrl);
 }
 
 // ============================================================================
