@@ -5,18 +5,12 @@
   "description": "Salva imagens rapidamente em subpastas com nome aleatório.",
   "permissions": [
     "downloads",
-    "downloads.open",
+    "downloads",
     "contextMenus",
     "storage",
     "activeTab"
   ],
   "background": {
-    "scripts": [
-      "lib/browser-polyfill.min.js",
-      "scripts/utils.js",
-      "scripts/download.js",
-      "scripts/background.js"
-    ],
     "service_worker": "scripts/background.js"
   },
   "host_permissions": [
