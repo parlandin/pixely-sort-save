@@ -10,6 +10,7 @@ const MESSAGE_ACTIONS = {
   DOWNLOAD_IMAGE_AT_POSITION: "download-image",
   CONTEXT_MENU_POSITION: "context-menu-position",
   SHOW_LOADING_TOAST: "showLoadingToast",
+  DELETE_OBJECT_URL: "deleteObjectURL",
 };
 
 const TOAST_TYPES = {
@@ -445,6 +446,16 @@ async function handleDownloadImageMessage(message) {
   return createImageDownloadResponse(url, "image");
 }
 
+async function revokeObjectURL(data) {
+  const { message } = data;
+  if (!message || !message.url) {
+    return null;
+  }
+
+  URL.revokeObjectURL(message.url);
+  return null;
+}
+
 function isToastMessage(action) {
   return (
     action === MESSAGE_ACTIONS.SHOW_SUCCESS_TOAST ||
@@ -474,6 +485,9 @@ function handleRuntimeMessage(message, sender, sendResponse) {
     case MESSAGE_ACTIONS.DOWNLOAD_IMAGE_AT_POSITION:
       return handleDownloadImageMessage(message);
 
+    case MESSAGE_ACTIONS.DELETE_OBJECT_URL:
+      return revokeObjectURL(message);
+
     default:
       return undefined;
   }
@@ -499,8 +513,12 @@ function handleContextMenu(event) {
 // EVENT LISTENERS SETUP
 // ============================================================================
 function setupEventListeners() {
-  document.addEventListener("dblclick", handleDoubleClickEvent);
-  document.addEventListener("contextmenu", handleContextMenu);
+  document.addEventListener("dblclick", handleDoubleClickEvent, {
+    passive: true,
+  });
+  document.addEventListener("contextmenu", handleContextMenu, {
+    passive: true,
+  });
   browser.runtime.onMessage.addListener(handleRuntimeMessage);
 }
 

@@ -86,12 +86,14 @@ async function processImageUrl(imageUrl, type, tabId, tab) {
       return {
         url: blobUrl,
         fileExtension: blobData.extension,
+        type: type,
       };
 
     case "data":
       const response = await browser.tabs.sendMessage(tabId, {
         action: "FETCH_DATA_URL",
         url: imageUrl,
+        type: type,
       });
 
       if (response.success) {
@@ -99,6 +101,7 @@ async function processImageUrl(imageUrl, type, tabId, tab) {
         return {
           url: dataUrl,
           fileExtension: await getFileExtension(dataUrl),
+          type: type,
         };
       }
 
@@ -107,6 +110,7 @@ async function processImageUrl(imageUrl, type, tabId, tab) {
       return {
         url: absoluteUrl,
         fileExtension: await getFileExtension(absoluteUrl),
+        type: type,
       };
 
     case "http":
@@ -114,6 +118,7 @@ async function processImageUrl(imageUrl, type, tabId, tab) {
       return {
         url: imageUrl,
         fileExtension: await getFileExtension(imageUrl),
+        type: type,
       };
   }
 }

@@ -48,6 +48,7 @@ const MESSAGE_ACTIONS = {
   SHOW_SUCCESS_TOAST: "showDownloadSuccessToast",
   SHOW_ERROR_TOAST: "showDownloadErrorToast",
   SHOW_LOADING_TOAST: "showLoadingToast",
+  DELETE_OBJECT_URL: "deleteObjectURL",
 };
 
 // ============================================================================
@@ -216,6 +217,12 @@ async function handleStorageChanges(changes) {
 // ============================================================================
 // EVENT HANDLERS
 // ============================================================================
+async function revokeObjectURL(url, tabId) {
+  browser.tabs.sendMessage(tabId, {
+    action: MESSAGE_ACTIONS.DELETE_OBJECT_URL,
+    message: { url },
+  });
+}
 
 async function handleContextMenuClick(info, tab) {
   const menuItemId = info.menuItemId;
@@ -232,8 +239,11 @@ async function handleContextMenuClick(info, tab) {
       return;
     }
 
-    const { url, fileExtension } = resolvedImage;
-    downloadImageToLocal(url, folderSuffix, fileExtension, tab?.id);
+    const { url, fileExtension, type } = resolvedImage;
+    await downloadImageToLocal(url, folderSuffix, fileExtension, tab?.id);
+    if (type == "blob" || type == "data") {
+      await revokeObjectURL(url, tab?.id);
+    }
     return;
   }
 
@@ -244,7 +254,10 @@ async function handleContextMenuClick(info, tab) {
       return;
     }
 
-    saveImageToDropbox(resolvedImage.url, tab?.id);
+    await saveImageToDropbox(resolvedImage.url, tab?.id);
+    if (resolvedImage.type === "blob" || resolvedImage.type === "data") {
+      await revokeObjectURL(resolvedImage.url, tab?.id);
+    }
     return;
   }
 }
