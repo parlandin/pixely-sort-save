@@ -33,14 +33,14 @@ mkdir -p "${DIST_DIR}/icons"
 mkdir -p "${DIST_DIR}/scripts"
 mkdir -p "${DIST_DIR}/pages"
 mkdir -p "${DIST_DIR}/lib"
-mkdir -p "${DIST_DIR}/css"
+mkdir -p "${DIST_DIR}/assets"
 
 # Copiar apenas os arquivos específicos necessários
 cp -r icons/* "${DIST_DIR}/icons/"
 cp -r scripts/* "${DIST_DIR}/scripts/"
 cp -r pages/* "${DIST_DIR}/pages/"
 cp -r lib/* "${DIST_DIR}/lib/"
-cp -r css/* "${DIST_DIR}/css/"
+cp -r assets/* "${DIST_DIR}/assets/"
 
 # Copiar outros arquivos específicos que possam ser necessários
 # Adicione outros arquivos conforme necessário
