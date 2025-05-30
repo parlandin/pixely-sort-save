@@ -118,10 +118,21 @@ async function handleImageDoubleClick(imageUrl) {
   if (isEnabled) {
     sendDownloadMessage(imageUrl);
   } else {
-    const errorMessage =
-      "Download por duplo clique desativado. Acesse as configurações.";
+    let notificationCount = parseInt(
+      sessionStorage.getItem("doubleClickNotificationCount") || "0"
+    );
 
-    showToast(errorMessage, TOAST_TYPES.ERROR);
+    if (notificationCount < 2) {
+      const errorMessage =
+        "Download por duplo clique desativado. Acesse as configurações.";
+      showToast(errorMessage, TOAST_TYPES.ERROR);
+
+      notificationCount++;
+      sessionStorage.setItem(
+        "doubleClickNotificationCount",
+        notificationCount.toString()
+      );
+    }
   }
 }
 
