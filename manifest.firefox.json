@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Pixely Sort & Save",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "description": "Salva imagens rapidamente em subpastas com nome aleatório.",
   "permissions": [
     "downloads",

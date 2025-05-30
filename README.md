@@ -1,5 +1,7 @@
 # Pixely Sort & Save
 
+[![Firefox Add-on](https://img.shields.io/badge/Firefox_Add--on-Available-FF7139?style=for-the-badge&logo=firefox-browser&logoColor=white)](https://addons.mozilla.org/en-US/firefox/addon/pixely-sort-save/)
+
 Salve imagens da web de forma rápida, organizada e sem complicações.
 **Pixely Sort & Save** adiciona um botão no menu de contexto que permite salvar qualquer imagem diretamente em uma pasta específica, usando sufixos para organizar suas coleções. O nome do arquivo é gerado automaticamente, evitando janelas de diálogo e acelerando seu fluxo de trabalho.
 
