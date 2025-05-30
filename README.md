@@ -34,6 +34,39 @@ Salve imagens da web de forma rápida, organizada e sem complicações.
 
 ---
 
+## 📦 Criação dos Arquivos da Extensão
+A extensão inclui scripts para facilitar a geração dos arquivos de distribuição:
+
+Para Firefox:
+
+Execute o script `compactar_extensao.sh` para gerar o arquivo `.xpi`:
+
+```bash
+./compactar_extensao.sh
+```
+Este script:
+
+* Cria um diretório `dist_firefox`
+* Gera o arquivo `.xpi` compatível com Firefox
+* Utiliza o `manifest.firefox.json` como base
+
+Para Chrome:
+
+Execute o script `gerar_pasta_chrome.sh` para preparar os arquivos:
+
+```bash
+./gerar_pasta_chrome.sh
+```
+
+Este script:
+
+* Cria um diretório `dist_chrome` com todos os arquivos necessários
+* Utiliza o` manifest.chrome.json` como base
+* Organiza a estrutura de arquivos conforme exigido pelo Chrome
+
+
+---
+
 ## ⚙️ Configurações
 
 ### Página de Configurações
