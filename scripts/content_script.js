@@ -74,6 +74,10 @@ function isBlobUrl(url) {
   return url && url.startsWith("blob:");
 }
 
+function isDataUrl(url) {
+  return url && url.startsWith("data:");
+}
+
 // ============================================================================
 // STORAGE UTILITIES
 // ============================================================================
@@ -227,15 +231,7 @@ async function convertBlobToArrayBuffer(blob) {
   return await blob.arrayBuffer();
 }
 
-function createBlobDataResponse(arrayBuffer, mimeType, extension) {
-  return {
-    arrayBuffer: Array.from(new Uint8Array(arrayBuffer)),
-    mimeType: mimeType,
-    extension: extension,
-  };
-}
-
-async function fetchBlobData(blobUrl) {
+async function fetchBlobDataURL(blobUrl) {
   try {
     const blob = await fetchBlobResponse(blobUrl);
 
@@ -243,7 +239,16 @@ async function fetchBlobData(blobUrl) {
     const extension = await getFileExtensionFromMimeType(mimeType);
     const arrayBuffer = await convertBlobToArrayBuffer(blob);
 
-    return createBlobDataResponse(arrayBuffer, mimeType, extension);
+    const newBlob = new Blob([arrayBuffer], { type: mimeType });
+    const downloadUrl = URL.createObjectURL(newBlob);
+
+    return {
+      success: true,
+      url: downloadUrl,
+      mimeType: mimeType,
+      extension: extension,
+      arrayBuffer: Array.from(new Uint8Array(arrayBuffer)),
+    };
   } catch (error) {
     console.error("Erro ao processar blob no content script:", error);
     throw error;
@@ -342,31 +347,6 @@ function findImageUnderPointer(x, y, maxLevels = 5) {
 // ============================================================================
 // BLOB RESOLUTION
 // ============================================================================
-async function createBlobResolveResponse(blobData) {
-  return {
-    success: true,
-    arrayBuffer: blobData.arrayBuffer,
-    mimeType: blobData.mimeType,
-    extension: blobData.extension,
-  };
-}
-
-function createBlobErrorResponse(error) {
-  return {
-    success: false,
-    error: error.message,
-  };
-}
-
-async function resolveBlobUrl(blobUrl) {
-  try {
-    const blobData = await fetchBlobData(blobUrl);
-    return createBlobResolveResponse(blobData);
-  } catch (error) {
-    console.error("Erro ao processar blob:", error);
-    return createBlobErrorResponse(error);
-  }
-}
 
 // ============================================================================
 // MESSAGE HANDLERS
@@ -394,13 +374,14 @@ function handleToastMessage(message) {
 
 async function handleFetchBlobDataMessage(message) {
   try {
-    const blobData = await fetchBlobData(message.blobUrl);
+    const blobData = await fetchBlobDataURL(message.blobUrl);
 
     return {
       success: true,
-      arrayBuffer: blobData.arrayBuffer,
+      url: blobData.url,
       mimeType: blobData.mimeType,
       extension: blobData.extension,
+      arrayBuffer: blobData.arrayBuffer,
     };
   } catch (error) {
     return { success: false, error: error.message };
@@ -418,12 +399,12 @@ async function handleFetchDataUrlMessage(message) {
   }
 }
 
-function createImageDownloadResponse(url, type, blobData = null) {
-  const response = { url, type };
-  if (blobData) {
-    response.blobData = blobData;
-  }
-  return response;
+function createImageDownloadResponse(url, type) {
+  return {
+    success: true,
+    type: type,
+    url: url,
+  };
 }
 
 async function handleDownloadImageMessage(message) {
@@ -439,11 +420,14 @@ async function handleDownloadImageMessage(message) {
   const { url } = imageElement;
 
   if (isBlobUrl(url)) {
-    const blobData = await resolveBlobUrl(url);
-    return createImageDownloadResponse(url, "blob", blobData);
+    return createImageDownloadResponse(url, "blob");
   }
 
-  return createImageDownloadResponse(url, "image");
+  if (isDataUrl(url)) {
+    return createImageDownloadResponse(url, "data");
+  }
+
+  return createImageDownloadResponse(url, "url");
 }
 
 async function revokeObjectURL(data) {

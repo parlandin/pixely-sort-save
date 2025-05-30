@@ -19,7 +19,7 @@ if (!DetectBrowser.isFirefox()) {
   );
 }
 
-browser = DetectBrowser.isFirefox() ? browser : chrome;
+/* browser = DetectBrowser.isFirefox() ? browser : chrome; */
 
 // ============================================================================
 // CONSTANTS
@@ -224,40 +224,58 @@ async function revokeObjectURL(url, tabId) {
   });
 }
 
+async function handleSaveLocalImage(info, tab) {
+  const menuItemId = info.menuItemId;
+
+  const folderSuffix = menuItemId.replace(
+    CONTEXT_MENU_IDS.LOCAL_SAVE_PREFIX,
+    ""
+  );
+
+  const isFirefox = DetectBrowser.isFirefox();
+  const resolvedImage = await resolveImageInput(info, tab, isFirefox);
+
+  console.log("Resolved image:", resolvedImage);
+
+  if (!resolvedImage || !resolvedImage.url) {
+    console.error("Failed to resolve image input.");
+    return;
+  }
+
+  const { url, fileExtension, type } = resolvedImage;
+  await downloadImageToLocal(url, folderSuffix, fileExtension, tab?.id);
+  if (type == "blob" || type == "data") {
+    await revokeObjectURL(url, tab?.id);
+  }
+  return;
+}
+
+async function handleSaveDropboxImage(info, tab) {
+  const isFirefox = DetectBrowser.isFirefox();
+  const resolvedImage = await resolveImageInput(info, tab, isFirefox);
+
+  if (!resolvedImage || !resolvedImage.url) {
+    console.error("Failed to resolve image input for Dropbox.");
+    return;
+  }
+
+  await saveImageToDropbox(resolvedImage.url, tab?.id);
+  if (resolvedImage.type === "blob" || resolvedImage.type === "data") {
+    await revokeObjectURL(resolvedImage.url, tab?.id);
+  }
+  return;
+}
+
 async function handleContextMenuClick(info, tab) {
   const menuItemId = info.menuItemId;
 
   if (menuItemId.startsWith(CONTEXT_MENU_IDS.LOCAL_SAVE_PREFIX)) {
-    const folderSuffix = menuItemId.replace(
-      CONTEXT_MENU_IDS.LOCAL_SAVE_PREFIX,
-      ""
-    );
-
-    const resolvedImage = await resolveImageInput(info, tab);
-    if (!resolvedImage || !resolvedImage.url) {
-      console.error("Failed to resolve image input.");
-      return;
-    }
-
-    const { url, fileExtension, type } = resolvedImage;
-    await downloadImageToLocal(url, folderSuffix, fileExtension, tab?.id);
-    if (type == "blob" || type == "data") {
-      await revokeObjectURL(url, tab?.id);
-    }
+    await handleSaveLocalImage(info, tab);
     return;
   }
 
   if (menuItemId === CONTEXT_MENU_IDS.DROPBOX_SAVE) {
-    const resolvedImage = await resolveImageInput(info, tab);
-    if (!resolvedImage || !resolvedImage.url) {
-      console.error("Failed to resolve image input for Dropbox.");
-      return;
-    }
-
-    await saveImageToDropbox(resolvedImage.url, tab?.id);
-    if (resolvedImage.type === "blob" || resolvedImage.type === "data") {
-      await revokeObjectURL(resolvedImage.url, tab?.id);
-    }
+    await handleSaveDropboxImage(info, tab);
     return;
   }
 }

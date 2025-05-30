@@ -13,9 +13,10 @@ async function downloadBlobUrl(blobUrl, tabId) {
 
     if (response.success) {
       return {
-        arrayBuffer: response.arrayBuffer,
-        mimeType: response.mimeType,
+        url: response.url,
         extension: response.extension,
+        mimeType: response.mimeType,
+        arrayBuffer: response.arrayBuffer,
       };
     } else {
       throw new Error(response.error);
@@ -24,6 +25,24 @@ async function downloadBlobUrl(blobUrl, tabId) {
     console.error("Erro ao processar blob URL:", error);
     throw error;
   }
+}
+
+async function downloadDataUrl(imageUrl, type, tabId) {
+  const response = await browser.tabs.sendMessage(tabId, {
+    action: "FETCH_DATA_URL",
+    url: imageUrl,
+    type: type,
+  });
+
+  if (response.success) {
+    const dataUrl = response.dataUrl;
+    return {
+      url: dataUrl,
+      fileExtension: await getFileExtension(dataUrl),
+      type: type,
+    };
+  }
+  throw new Error("Failed to fetch data URL");
 }
 
 async function CreateBlobUrl(arrayBuffer, mimeType) {
@@ -40,7 +59,7 @@ async function CreateBlobUrl(arrayBuffer, mimeType) {
   return downloadUrl;
 }
 
-async function resolveImageInput(info, tab) {
+async function resolveImageInput(info, tab, isFirefox) {
   if (!info?.mediaType || info.mediaType !== "image") {
     const response = await browser.tabs.sendMessage(tab.id, {
       action: "download-image",
@@ -48,7 +67,13 @@ async function resolveImageInput(info, tab) {
     });
 
     if (response?.url) {
-      return await processImageUrl(response.url, response.type, tab.id, tab);
+      return await processImageUrl(
+        response.url,
+        response.type,
+        tab.id,
+        tab,
+        isFirefox
+      );
     }
   }
 
@@ -57,7 +82,7 @@ async function resolveImageInput(info, tab) {
   }
 
   const urlType = getImageUrlType(info.srcUrl);
-  return await processImageUrl(info.srcUrl, urlType, tab.id, tab);
+  return await processImageUrl(info.srcUrl, urlType, tab.id, tab, isFirefox);
 }
 
 function getImageUrlType(url) {
@@ -71,39 +96,45 @@ function getImageUrlType(url) {
   return "unknown";
 }
 
-async function processImageUrl(imageUrl, type, tabId, tab) {
+async function getUrlToFirefox(imageUrl, type, tabId) {
+  const blobData = await downloadBlobUrl(imageUrl, tabId);
+  const blobUrl = await CreateBlobUrl(blobData.arrayBuffer, blobData.mimeType);
+
+  if (!blobUrl) {
+    throw new Error("Failed to create blob URL");
+  }
+  return {
+    url: blobUrl,
+    fileExtension: blobData.extension,
+    type: type,
+  };
+}
+
+async function processImageUrl(imageUrl, type, tabId, tab, isFirefox = false) {
   if (!type || type === "url") {
     type = getImageUrlType(imageUrl);
   }
 
+  console.log("Processing image URL:", imageUrl, "Type:", type);
+
   switch (type) {
     case "blob":
-      const blobData = await downloadBlobUrl(imageUrl, tabId);
-      const blobUrl = await CreateBlobUrl(
-        blobData.arrayBuffer,
-        blobData.mimeType
-      );
-      return {
-        url: blobUrl,
-        fileExtension: blobData.extension,
-        type: type,
-      };
+      if (isFirefox) {
+        const blobData = await getUrlToFirefox(imageUrl, type, tabId);
+        return blobData;
+      }
+
+      const dataResponse = await downloadDataUrl(imageUrl, type, tabId);
+      return dataResponse;
 
     case "data":
-      const response = await browser.tabs.sendMessage(tabId, {
-        action: "FETCH_DATA_URL",
-        url: imageUrl,
-        type: type,
-      });
-
-      if (response.success) {
-        const dataUrl = response.dataUrl;
-        return {
-          url: dataUrl,
-          fileExtension: await getFileExtension(dataUrl),
-          type: type,
-        };
+      if (isFirefox) {
+        const blobData = await getUrlToFirefox(imageUrl, type, tabId);
+        return blobData;
       }
+
+      const response = await downloadDataUrl(imageUrl, type, tabId);
+      return response;
 
     case "relative":
       const absoluteUrl = new URL(imageUrl, tab.url).href;
@@ -175,14 +206,6 @@ async function downloadImageToLocal(
       conflictAction: "uniquify",
       saveAs: false,
     });
-
-    // Clean up any blob URLs we created
-    /* if (
-      (isBlobUrl(downloadUrl) || downloadUrl.startsWith("blob:")) &&
-      downloadUrl !== imageUrl
-    ) {
-      setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
-    } */
 
     await sendSuccessNotification(tabId, "Imagem encontrada, salvando...");
   } catch (error) {
