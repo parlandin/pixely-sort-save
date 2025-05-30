@@ -8,9 +8,12 @@ Salve imagens da web de forma rápida, organizada e sem complicações.
 ## 🎞️ Funcionalidades
 
 * ✅ Salvar imagens com apenas um clique (menu de contexto)
+* ✅ Salvar com duplo clique do mouse
 * ✅ Defina sufixos personalizados para organizar em subpastas
 * ✅ Nome aleatório automático com extensão preservada
 * ✅ Sem janelas de diálogo de download
+* ✅ Salvar diretamente no Dropbox
+* 🔜 Salvar no Google Drive (em breve)
 * ✅ Leve, rápido e fácil de usar
 
 
@@ -33,13 +36,23 @@ Salve imagens da web de forma rápida, organizada e sem complicações.
 
 ## ⚙️ Configurações
 
+### Página de Configurações
+
 * Acesse a página de configurações da extensão.
 * Adicione ou edite os sufixos que serão usados para criar subpastas.
 * As imagens serão salvas em `/images/<sufixo>/`.
 
-![image](./screenshot/options.jpg)
+![image](./screenshot/confi.png)
 
 
+### Menu Rápido na Toolbar
+A extensão oferece um menu rápido na barra de ferramentas para acesso às funções mais comuns:
+
+* Ative/desative recursos rapidamente
+* Acesse as configurações com um clique
+* Visualize o status das integrações (Dropbox/Google Drive)
+
+![image](./screenshot/tolbar.png)
 ---
 
 ## 🗂️ Estrutura dos Arquivos Salvos
@@ -61,11 +74,20 @@ Salve imagens da web de forma rápida, organizada e sem complicações.
 3. Escolha um dos sufixos configurados.
 4. A imagem será salva automaticamente em `/images/<sufixo>/` com um nome aleatório.
 
-![image](./screenshot/example.jpg)
+![image](./screenshot/use.png)
 
 ---
 
 ## 🌐 Compatibilidade
 
 * Firefox
-* Outros navegadores Firefox-based
+  * Outros navegadores  baseado no Firefox
+  * Zen (testado)
+  * Waterfox
+  * LibreWolf
+* Chrome
+  * Outros navegadores baseado no chrome
+  * Chrome (testado)
+  * Brave
+  * Opera
+  * Vivaldi
