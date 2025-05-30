@@ -115,8 +115,6 @@ async function processImageUrl(imageUrl, type, tabId, tab, isFirefox = false) {
     type = getImageUrlType(imageUrl);
   }
 
-  console.log("Processing image URL:", imageUrl, "Type:", type);
-
   switch (type) {
     case "blob":
       if (isFirefox) {

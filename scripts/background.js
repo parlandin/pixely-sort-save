@@ -235,8 +235,6 @@ async function handleSaveLocalImage(info, tab) {
   const isFirefox = DetectBrowser.isFirefox();
   const resolvedImage = await resolveImageInput(info, tab, isFirefox);
 
-  console.log("Resolved image:", resolvedImage);
-
   if (!resolvedImage || !resolvedImage.url) {
     console.error("Failed to resolve image input.");
     return;
