@@ -51,6 +51,8 @@ const MESSAGE_ACTIONS = {
   DELETE_OBJECT_URL: "deleteObjectURL",
 };
 
+let doubleClickNotificationShown = false;
+
 // ============================================================================
 // CONTEXT MENU MANAGEMENT
 // ============================================================================
@@ -322,6 +324,17 @@ async function handleRuntimeMessage(message, sender, sendResponse) {
         dropboxEnabled: message.dropboxEnabled,
       });
       break;
+
+    case "checkDoubleClickNotification":
+      return Promise.resolve({ alreadyShown: doubleClickNotificationShown });
+
+    case "markDoubleClickNotificationShown":
+      doubleClickNotificationShown = true;
+      return Promise.resolve({ success: true });
+
+    case "clearDoubleClickNotification":
+      doubleClickNotificationShown = false;
+      return Promise.resolve({ success: true });
 
     default:
       return false;

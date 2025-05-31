@@ -118,21 +118,23 @@ async function handleImageDoubleClickValidation() {
   if (isEnabled) {
     return isEnabled;
   } else {
-    let notificationCount = parseInt(
-      sessionStorage.getItem("doubleClickNotificationCount") || "0"
-    );
+    // Query the background script for notification state
+    const response = await browser.runtime.sendMessage({
+      action: "checkDoubleClickNotification",
+    });
 
-    if (notificationCount < 2) {
+    if (!response.alreadyShown) {
       const errorMessage =
         "Download por duplo clique desativado. Acesse as configurações.";
       showToast(errorMessage, TOAST_TYPES.ERROR);
 
-      notificationCount++;
-      sessionStorage.setItem(
-        "doubleClickNotificationCount",
-        notificationCount.toString()
-      );
+      // Tell background script we've shown the notification
+      browser.runtime.sendMessage({
+        action: "markDoubleClickNotificationShown",
+      });
     }
+
+    return false;
   }
 }
 

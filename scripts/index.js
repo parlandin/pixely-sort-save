@@ -26,6 +26,10 @@ function handleSettingsButtonClick() {
 async function updateDoubleClickSetting(isEnabled) {
   try {
     await browser.storage.local.set({ doubleClickEnabled: isEnabled });
+
+    await browser.runtime.sendMessage({
+      action: "clearDoubleClickNotification",
+    });
   } catch (error) {
     console.error("Error updating double click setting:", error);
   }
